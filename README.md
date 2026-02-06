@@ -1,139 +1,198 @@
 # SystemTrafficLaw
-Traffic Violation Detection System using Instance Segmentation
-Giới thiệu
-Dự án xây dựng hệ thống giám sát giao thông thông minh sử dụng Computer Vision và Deep Learning nhằm tự động phát hiện hành vi vi phạm giao thông từ hình ảnh/video, xác định biển số phương tiện vi phạm và hỗ trợ khôi phục ảnh biển số mờ trong điều kiện thực tế tại Việt Nam.
-Hệ thống tập trung vào các lỗi vi phạm phổ biến của xe máy, phù hợp với hạ tầng camera giao thông hiện nay.
-Mục tiêu dự án
-Mục tiêu tổng quát
+Traffic Violation Detection System using Deep Learning
 
-Ứng dụng Instance Segmentation, Object Detection và OCR để xây dựng một pipeline hoàn chỉnh có khả năng:
+## Giới thiệu
 
-Phát hiện hành vi vi phạm giao thông
+Dự án này xây dựng hệ thống phát hiện hành vi vi phạm giao thông dựa trên Computer Vision, Deep Learning và Tracking. 
 
-Tự động trích xuất và nhận dạng biển số phương tiện
+Hệ thống có khả năng:
+- Phát hiện và theo dõi phương tiện giao thông 
+- Phát hiện hành vi vượt đèn đỏ 
+- Phát hiện không đội mũ bảo hiểm 
+- Phát hiện chở quá số người quy định
+- Tự động phát hiện khôi phục nhận diện biển số 
+- Tự động chụp ảnh phương tiện vi phạm
 
-Nâng cao chất lượng ảnh biển số phục vụ nhận dạng
-Mục tiêu cụ thể
+Hệ thống được thiết kế theo kiến trúc nhiều mô hình (multi-model pipeline), phản ánh đúng quy trình của camera giao thông thông minh trong thực tế.
 
-Nhận diện chính xác các đối tượng giao thông trong môi trường phức tạp
+## Mục tiêu dự án
 
-Phát hiện các hành vi vi phạm giao thông phổ biến
+- Ứng dụng YOLO + Tracking + Segmentation vào bài toán giao thông
+- Kết hợp nhiều mô hình AI cho các nhiệm vụ khác nhau
+- Xây dựng pipeline xử lý hoàn chỉnh từ video → vi phạm → biển số
+- Phục vụ mục đích nghiên cứu – học tập – demo hệ thống giám sát giao thông
 
-Xây dựng logic xác định vi phạm dựa trên mối quan hệ không gian giữa các đối tượng
+## Kiến trúc tổng thể hệ thống
 
-Nhận dạng biển số phương tiện vi phạm
+```
+Camera / Video
+      ↓
+Model 1: Vehicle Detection + Tracking
+      ↓
+Phát hiện hành vi vi phạm (logic)
+      ↓
+Trigger Capture (chỉ khi vi phạm)
+      ↓
+Model 2: Helmet & People Detection
+      ↓
+Model 3: License Plate Detection
+      ↓
+Super Resolution / Deblur (nếu cần)
+      ↓
+OCR – Nhận dạng biển số
+      ↓
+Lưu DB & Xuất báo cáo vi phạm
+```
 
-Khôi phục ảnh biển số bị mờ bằng Generative AI
+## Các mô hình trong hệ thống
 
-Xây dựng hệ thống có khả năng mở rộng cho bài toán thực tế
+### Model 1 – Vehicle Detection & Tracking
 
-Các hành vi vi phạm được phát hiện
+**Nhiệm vụ**
+- Phát hiện phương tiện và người tham gia giao thông
+- Theo dõi đối tượng qua nhiều frame
+- Phục vụ phát hiện hành vi vượt đèn đỏ
 
-Không đội mũ bảo hiểm
-Vượt đèn đỏ
-Chở quá số người quy định (tống 3)
-Dừng xe sai vạch (mở rộng)
-Kiến trúc tổng thể hệ thống
-Video / Image Input
-        ↓
-YOLO Instance Segmentation
-        ↓
-Rule-based Violation Detection
-        ↓
-License Plate Detection (YOLO)
-        ↓
-Crop License Plate
-        ↓
-Image Enhancement (GAN - nếu mờ)
-        ↓
-OCR License Plate
-        ↓
-Violation Result Output
+**Công nghệ**
+- YOLOv8 (Detection hoặc Segmentation)
+- DeepSORT / ByteTrack
 
-Các mô hình sử dụng
-🔹 Model 1 – Instance Segmentation
+**Class label**
+- motorbike
+- car
+- person
+- traffic_light (hoặc red_light / green_light)
 
-Mục đích: Phát hiện đối tượng và phân biệt từng instance riêng biệt
+**Output**
+- Bounding box / mask
+- Track ID
+- Quỹ đạo di chuyển
 
-Công nghệ:
+### Model 2 – Helmet & Overloading Detection
 
-YOLO Seg (YOLOv8 / YOLO11 / YOLOv12)
+**Nhiệm vụ**
+- Phát hiện người đội mũ / không đội mũ
+- Phát hiện hành vi chở quá số người
 
-Classes chính:
+**Dữ liệu**
+- Ảnh crop từ output Model 1 (xe máy + người)
 
-motorcycle
+**Class label**
+- person
+- helmet
+- head (hoặc no_helmet)
 
-person
+**Logic vi phạm**
 
-helmet
+*Không đội mũ:*
+- ≥ 3 frame liên tiếp không có helmet → vi phạm
 
-head
+*Chở quá số người:*
+- 1 motorbike + số person > 2 → vi phạm
 
-traffic_light_red
+### Model 3 – License Plate Detection & Recognition
 
-stop_line
+**Nhiệm vụ**
+- Phát hiện biển số xe
+- Khôi phục biển số bị mờ
+- Nhận dạng ký tự biển số
 
-🔹 Model 2 – License Plate Detection
+**Pipeline**
+```
+YOLO detect plate
+→ Crop plate
+→ Super Resolution / Deblur (nếu mờ)
+→ OCR (PaddleOCR / EasyOCR)
+```
 
-Mục đích: Phát hiện vùng biển số phương tiện vi phạm
+**Class label**
+- license_plate
 
-Công nghệ:
+## Xử lý & tổ chức dữ liệu
 
-YOLO Object Detection
+### 1. Dữ liệu thô
+- Video giao thông từ camera
+- Trích xuất frame theo FPS phù hợp
 
-Class:
+### 2. Tiền xử lý
+- Loại bỏ ảnh quá mờ (Laplacian variance)
+- Resize ảnh về kích thước chuẩn
+- Augmentation: flip, blur, noise
 
-license_plate
+### 3. Annotation
 
-🔹 Model 3 – Image Enhancement (Nâng cao – tùy chọn)
+**Lưu ý:** Các model dùng chung dữ liệu ảnh/video, **KHÔNG** dùng chung label
 
-Mục đích: Khôi phục ảnh biển số mờ, nhiễu
+```
+raw_images/
+labels_model1/
+labels_model2/
+labels_model3/
+```
 
-Công nghệ:
+## Chiến lược huấn luyện (Training Strategy)
 
-Real-ESRGAN / DeblurGAN
+### Fine-tuning
+- Sử dụng pretrained YOLOv8
+- Freeze backbone giai đoạn đầu
+- Fine-tune head theo từng bài toán
+- Batch size & learning rate điều chỉnh theo GPU
 
-🔹 Model 4 – OCR
+### Loss function
+- YOLO default loss (box + cls + dfl)
+- Mask loss (nếu dùng segmentation)
 
-Mục đích: Nhận dạng ký tự biển số
+## Đánh giá mô hình (Evaluation Metrics)
 
-Công nghệ:
+### Detection / Segmentation
+- Precision
+- Recall
+- mAP@0.5
+- mAP@0.5:0.95
+- IoU
 
-PaddleOCR / VietOCR
+### Tracking
+- MOTA
+- ID Switch
+- FPS
 
-(Nâng cao: detect từng ký tự bằng YOLO + CNN)
+### OCR
+- Character Accuracy
+- Plate-level Accuracy
 
-⚙️ Công nghệ sử dụng
-Thành phần	Công nghệ
-Ngôn ngữ	Python
-Deep Learning	PyTorch
-Computer Vision	OpenCV
-Model CV	YOLO Seg, YOLO Detection
-Annotation	Roboflow
-OCR	PaddleOCR / VietOCR
-Image Enhancement	GAN (Real-ESRGAN)
-Dataset	Image & Video giao thông Việt Nam
-Gán nhãn dữ liệu (Annotation)
+## Cơ chế phát hiện & ghi nhận vi phạm
 
-Công cụ: Roboflow
+- Hệ thống chỉ chụp ảnh khi có vi phạm
+- Mỗi lỗi là module độc lập
+- Một phương tiện có thể vi phạm nhiều lỗi cùng lúc
 
-Loại nhãn:
+**Ví dụ:**
+```
+Không vượt đèn đỏ ❌
+Nhưng:
+Không đội mũ bảo hiểm ✅
+→ Vẫn ghi nhận vi phạm
+```
 
-Instance Segmentation cho đối tượng giao thông
+## Kết quả đầu ra
 
-Bounding Box cho biển số
+- Ảnh phương tiện vi phạm
+- Biển số đã nhận dạng
+- Thời gian & loại vi phạm
+- Dữ liệu sẵn sàng hiển thị dashboard hoặc báo cáo
 
-Hỗ trợ:
+## Hướng phát triển
 
-Annotation Group
+- Nhận diện đi ngược chiều
+- Nhận diện đi sai làn
+- Tối ưu realtime (TensorRT)
+- Kết nối hệ thống IoT / Smart City
 
-Gán nhãn tiếng Việt
- Output hệ thống
+## Công nghệ sử dụng
 
-Hình ảnh/video có bounding box & mask
-
-Thông tin:
-
-Loại vi phạm
-
-Biển số phương tiện
+- Python
+- YOLOv8
+- OpenCV
+- DeepSORT / ByteTrack
+- PaddleOCR / EasyOCR
+- ESRGAN / Real-ESRGAN
