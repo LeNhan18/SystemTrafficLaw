@@ -1,0 +1,38 @@
+# Core dependencies for video processing
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Future ML dependencies (uncomment when needed)
+# ultralytics>=8.0.0          # YOLOv8
+# torch>=2.0.0                # PyTorch
+# torchvision>=0.15.0         # PyTorch Vision
+# Pillow>=9.5.0              # Image processing
+
+# Tracking (uncomment when implementing)
+# deep-sort-realtime>=0.2.0  # DeepSORT tracking
+# filterpy>=1.4.5            # Kalman filters
+
+# OCR (uncomment when implementing)
+# paddlepaddle>=2.5.0        # PaddleOCR backend
+# paddleocr>=2.7.0           # License plate OCR
+# easyocr>=1.7.0             # Alternative OCR
+
+# Web framework (uncomment when building API)
+# fastapi>=0.100.0           # Modern web framework
+# uvicorn>=0.23.0            # ASGI server
+# pydantic>=2.0.0            # Data validation
+
+# Database (uncomment when implementing)
+# sqlalchemy>=2.0.0          # ORM
+# psycopg2-binary>=2.9.0     # PostgreSQL driver
+# pymongo>=4.5.0             # MongoDB driver
+
+# Utilities
+pathlib2>=2.3.7            # Path handling
+python-dotenv>=1.0.0       # Environment variables
+tqdm>=4.65.0               # Progress bars
+
+# Development tools
+pytest>=7.4.0             # Testing framework
+black>=23.7.0             # Code formatter
+flake8>=6.0.0             # Linting
